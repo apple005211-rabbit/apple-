@@ -1,0 +1,187 @@
+import React, { useState, useEffect } from 'react';
+import { Play, Pause, Heart, Share2, Music, Disc, CloudRain, Sun, Moon, Wind, ListMusic } from 'lucide-react';
+
+const App = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState(0);
+  const [liked, setLiked] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  // 模擬進度條動畫
+  useEffect(() => {
+    let interval;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setProgress((prev) => (prev >= 100 ? 0 : prev + 0.5));
+      }, 500);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
+  const videoInfo = {
+    title: "Japanese R&B｜一聽就愛上的日文歌",
+    subtitle: "快樂就是這麼簡單 🎶",
+    channel: "7Tunes-n2e",
+    duration: "1:07:19",
+    tags: ["#放鬆音樂", "#Chill", "#R&B", "#J-POP", "#作業用BGM"],
+    url: "https://www.youtube.com/watch?v=r34IHFI-29c"
+  };
+
+  // 根據歌詞內容提取的意象與主題
+  const themes = [
+    { icon: <Sun className="w-5 h-5 text-orange-400" />, title: "光之歌", desc: "在晨光中尋找希望與未來" },
+    { icon: <Wind className="w-5 h-5 text-pink-300" />, title: "櫻花戀曲", desc: "隨風飄落的花瓣與初戀的心跳" },
+    { icon: <CloudRain className="w-5 h-5 text-blue-400" />, title: "海邊的夏天", desc: "波浪聲、沙灘與兩人共享的果汁" },
+    { icon: <Moon className="w-5 h-5 text-indigo-400" />, title: "星空告白", desc: "在靜謐的夜空下傳遞思念" },
+    { icon: <Music className="w-5 h-5 text-purple-400" />, title: "雨中的回憶", desc: "透過雨聲喚起那些溫柔的過往" },
+  ];
+
+  const handlePlay = () => {
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleOpenVideo = () => {
+    window.open(videoInfo.url, '_blank');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center p-4 font-sans text-slate-800">
+      <div className="max-w-4xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
+        
+        {/* 左側：播放器介面 */}
+        <div className="md:w-1/2 p-8 bg-gradient-to-br from-indigo-50 to-blue-50 flex flex-col justify-between relative overflow-hidden">
+          {/* 背景裝飾 */}
+          <div className={`absolute top-10 right-10 w-64 h-64 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse`} />
+          <div className={`absolute bottom-10 left-10 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse`} style={{ animationDelay: '2s' }} />
+
+          {/* 頂部資訊 */}
+          <div className="flex justify-between items-center z-10">
+            <div className="flex items-center space-x-2 text-slate-500">
+              <Disc className={`w-5 h-5 ${isPlaying ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
+              <span className="text-sm font-medium tracking-wider">NOW PLAYING</span>
+            </div>
+            <button className="text-slate-400 hover:text-slate-600 transition-colors">
+              <Share2 className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* 專輯封面示意圖 */}
+          <div className="flex-1 flex items-center justify-center py-8 z-10">
+            <div className="relative w-48 h-48 md:w-64 md:h-64 shadow-2xl rounded-2xl overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-80 group-hover:scale-110 transition-transform duration-700"></div>
+              <img 
+                src="https://images.unsplash.com/photo-1493225255756-d9584f8606e9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+                alt="Relaxing Vibes" 
+                className="absolute inset-0 w-full h-full object-cover mix-blend-overlay group-hover:scale-110 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                 <button 
+                  onClick={handlePlay}
+                  className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-all border border-white/40 shadow-lg group-hover:scale-105"
+                 >
+                   {isPlaying ? <Pause className="w-8 h-8 text-white fill-current" /> : <Play className="w-8 h-8 text-white fill-current ml-1" />}
+                 </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 歌曲資訊與控制 */}
+          <div className="space-y-6 z-10">
+            <div className="text-center md:text-left">
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-800 leading-tight mb-1">{videoInfo.title}</h1>
+              <p className="text-slate-500 text-lg">{videoInfo.subtitle}</p>
+            </div>
+
+            {/* 進度條 */}
+            <div className="space-y-2">
+              <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-slate-400 font-mono">
+                <span>00:00</span>
+                <span>{videoInfo.duration}</span>
+              </div>
+            </div>
+
+            {/* 控制按鈕 */}
+            <div className="flex justify-between items-center pt-2">
+              <button 
+                onClick={() => setLiked(!liked)} 
+                className={`p-3 rounded-full transition-colors ${liked ? 'bg-pink-100 text-pink-500' : 'hover:bg-slate-100 text-slate-400'}`}
+              >
+                <Heart className={`w-6 h-6 ${liked ? 'fill-current' : ''}`} />
+              </button>
+              
+              <button 
+                onClick={handleOpenVideo}
+                className="flex-1 mx-4 bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl active:scale-95 flex items-center justify-center space-x-2"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>在 YouTube 觀看</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 右側：詳細資訊與播放清單 */}
+        <div className="md:w-1/2 p-8 bg-white flex flex-col overflow-y-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-200">
+          <div className="mb-8">
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center">
+              <ListMusic className="w-4 h-4 mr-2" />
+              Playlist Themes
+            </h2>
+            <div className="space-y-4">
+              {themes.map((theme, index) => (
+                <div 
+                  key={index}
+                  onClick={() => setCurrentTrack(index)}
+                  className={`p-4 rounded-xl cursor-pointer transition-all border ${
+                    currentTrack === index 
+                      ? 'bg-indigo-50 border-indigo-100 shadow-sm' 
+                      : 'bg-white border-slate-100 hover:border-indigo-100 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-start space-x-4">
+                    <div className={`p-3 rounded-lg ${currentTrack === index ? 'bg-white shadow-sm' : 'bg-slate-100'}`}>
+                      {theme.icon}
+                    </div>
+                    <div>
+                      <h3 className={`font-bold ${currentTrack === index ? 'text-indigo-900' : 'text-slate-700'}`}>
+                        {theme.title}
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                        {theme.desc}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-auto">
+            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Tags</h2>
+            <div className="flex flex-wrap gap-2">
+              {videoInfo.tags.map((tag, i) => (
+                <span key={i} className="px-3 py-1 bg-slate-100 text-slate-600 text-sm rounded-full font-medium hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-default">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            
+            <div className="mt-8 pt-6 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center">
+              <span>Channel: {videoInfo.channel}</span>
+              <span>Published: 2025-09-28</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default App;
