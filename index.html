@@ -1,0 +1,572 @@
+import React, { useState, useEffect } from 'react';
+import { Trophy, Users, Activity, ArrowRight, RotateCcw, Award, CheckCircle, Star, Lightbulb, Volume2, BookOpen, Info, Sparkles, MessageSquareQuote, Loader2, Edit3, Gift, RefreshCw, Zap, Hand, UserPlus } from 'lucide-react';
+
+// --- 語音播放功能 ---
+const speak = (text) => {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-TW';
+    utterance.rate = 0.9; 
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+  } else {
+    alert("您的瀏覽器不支援語音播放功能喔！");
+  }
+};
+
+// --- 資料設定 ---
+
+// 輔助元件：可愛運動玩偶圖示
+const SportDoll = ({ animal, sport, size = "text-3xl" }) => (
+  <div className={`flex flex-col items-center justify-center ${size} filter drop-shadow-md select-none`}>
+    <span className="leading-none">{animal}</span>
+    {sport && <span className="text-sm absolute -bottom-1 -right-2 bg-white rounded-full p-0.5 shadow-sm border border-gray-100">{sport}</span>}
+  </div>
+);
+
+// 遊戲參數
+const WINNING_SCORE = 100;
+const PERIMETER_COUNT = 24; // 7x7 外框扣掉中間 = 24格
+
+// 機會卡池 (對應功能)
+const CHANCE_DECK = [
+  { id: 'help', label: '找人幫忙', icon: <UserPlus className="text-blue-500" />, desc: '指定一位隊友或老師協助完成下一個動作！', effect: 'none' },
+  { id: 'repick', label: '重新選題', icon: <RefreshCw className="text-green-500" />, desc: '這回合不算，請重新選擇一個喜歡的格子！', effect: 'repick' },
+  { id: 'double', label: '分數 x2', icon: <Zap className="text-yellow-500" />, desc: '運氣爆棚！下一次答對題目，分數直接兩倍！', effect: 'buff_double' },
+  { id: 'steal', label: '拿取得分', icon: <Hand className="text-red-500" />, desc: '嘿嘿！從目前最高分的隊伍那裡拿走 10 分！', effect: 'steal_10' },
+  { id: 'extra', label: '多一次機會', icon: <Star className="text-purple-500" />, desc: '太棒了！這回合結束後，你可以再玩一次！', effect: 'extra_turn' },
+  { id: 'bonus', label: '天上掉餡餅', icon: <Gift className="text-pink-500" />, desc: '什麼都不用做，直接獲得 15 分！', effect: 'add_15' },
+  { id: 'help', label: '團隊合作', icon: <Users className="text-orange-500" />, desc: '全隊一起做一個動作，如果通過加 10 分！', effect: 'none' }, // Effect none means just show text
+  { id: 'repick', label: '再選一次', icon: <RefreshCw className="text-green-500" />, desc: '放棄這次機會卡，去選一個格子吧！', effect: 'repick' },
+  { id: 'steal', label: '分數互換', icon: <RotateCcw className="text-blue-400" />, desc: '開玩笑的... 其實是從別人那裡拿 5 分！', effect: 'steal_5' },
+  { id: 'double', label: '活力加倍', icon: <Zap className="text-yellow-500" />, desc: '下一個動作做得特別大聲，分數加倍！', effect: 'buff_double' },
+];
+
+// 體適能運動題目庫 (擴充至 24 題)
+const EXERCISE_POOL = [
+  { label: '轉轉頭', points: 10, animal: '🐻', sport: '🧣', task: '慢慢地將頭轉向右邊，再轉向左邊，來回 5 次。', hint: '動作要慢，不要太大力，感覺脖子有些微拉伸即可。', answer: '頸部放鬆', explanation: '放鬆頸部肌肉，減少落枕機會。' },
+  { label: '抬抬膝', points: 15, animal: '🐇', sport: '👟', task: '坐在椅子上，輪流將膝蓋抬高，像在踏步一樣 20 下！', hint: '手扶椅背，背挺直，大腿用力。', answer: '膝蓋抬高', explanation: '訓練大腿肌力，走路更穩。' },
+  { label: '舉高手', points: 10, animal: '🐨', sport: '🙌', task: '雙手十指交扣，掌心向上，用力向上伸展 10 秒鐘。', hint: '想像摸天花板，手臂伸直。', answer: '手臂伸直', explanation: '改善五十肩，呼吸更順暢。' },
+  { label: '轉手腕', points: 10, animal: '🐱', sport: '👋', task: '雙手握拳，順時針轉動 10 圈，再逆時針轉 10 圈。', hint: '動作大一點，充分活動關節。', answer: '關節活動', explanation: '預防手麻，促進末梢循環。' },
+  { label: '擴胸操', points: 15, animal: '🦁', sport: '💪', task: '雙手向兩側打開，做擴胸運動，重複 10 次。', hint: '吸氣打開，吐氣合起來。', answer: '胸部伸展', explanation: '改善駝背，增加肺活量。' },
+  { label: '墊腳尖', points: 15, animal: '🐧', sport: '🩰', task: '扶著椅背，慢慢墊起腳尖，停留 3 秒再放下，做 10 次。', hint: '一定要扶穩，注意安全。', answer: '小腿用力', explanation: '小腿是第二心臟，幫助血液回流。' },
+  { label: '抓抓手', points: 10, animal: '🐙', sport: '🖐️', task: '用力張開手掌像布，再用力握拳像石頭，重複 10 次。', hint: '手指張到最大，握到最緊。', answer: '手指靈活', explanation: '刺激手部穴道，活化大腦。' },
+  { label: '扭扭腰', points: 15, animal: '🐷', sport: '🤸', task: '雙手插腰，上半身向左轉，再向右轉，做 5 次。', hint: '屁股不動，只轉上半身。', answer: '腰部活動', explanation: '放鬆腰背，增加脊椎靈活度。' },
+  { label: '拍拍肩', points: 10, animal: '🐵', sport: '💆', task: '右手拍左肩，左手拍右肩，各 10 下。', hint: '輕輕拍打，像按摩一樣。', answer: '肩頸放鬆', explanation: '促進血液循環，緩解痠痛。' },
+  { label: '深呼吸', points: 10, animal: '🐳', sport: '🌬️', task: '閉眼，鼻子深吸氣，嘴巴慢吐氣，做 3 次。', hint: '吸氣肚子鼓，吐氣肚子縮。', answer: '身心放鬆', explanation: '調節自律神經，降低焦慮。' },
+  { label: '翹腳尖', points: 15, animal: '🐢', sport: '🦶', task: '坐著腳跟著地，腳尖用力往上翹，做 15 次。', hint: '小腿前側會痠痠的喔。', answer: '腳背勾起', explanation: '預防跌倒，訓練抬腳肌肉。' },
+  { label: '大笑操', points: 20, animal: '😸', sport: '😆', task: '雙手插腰，大笑三聲「哈！哈！哈！」', hint: '越大聲越好，假笑也能變真笑。', answer: '腹部用力', explanation: '提升免疫力，釋放壓力。' },
+  { label: '划船趣', points: 15, animal: '🚣', sport: '🚣', task: '雙手握拳向前伸，做划船動作，來回 10 次。', hint: '身體跟著微微前後擺動。', answer: '背部活動', explanation: '訓練背肌，改善圓肩。' },
+  { label: '喝水趣', points: 10, animal: '🥛', sport: '💧', task: '暫停一下，拿起水杯喝兩口水。', hint: '慢慢喝，不要急。', answer: '補充水分', explanation: '預防脫水，促進代謝。' },
+  { label: '相撲蹲', points: 20, animal: '🐻', sport: '🥋', task: '腳開比肩寬，手扶膝微蹲 5 秒。', hint: '背挺直，屁股往後坐。', answer: '下肢肌力', explanation: '強化腿部與臀部肌肉。' },
+  { label: '比愛心', points: 15, animal: '🦄', sport: '❤️', task: '全隊比出愛心，說「我愛你」！', hint: '表達感謝與愛意。', answer: '正向互動', explanation: '促進催產素分泌，感到幸福。' },
+  { label: '拍拍腿', points: 10, animal: '🐼', sport: '🙌', task: '用雙手輕拍大腿外側與內側，各 10 下。', hint: '由上往下拍，放鬆肌肉。', answer: '腿部放鬆', explanation: '促進下肢循環。' },
+  { label: '剪刀手', points: 15, animal: '🦀', sport: '✌️', task: '雙手比剪刀、石頭、布，快速變換 10 次。', hint: '考驗反應速度。', answer: '腦力激盪', explanation: '預防失智，訓練反應。' },
+  { label: '聳聳肩', points: 10, animal: '🦒', sport: '🤷', task: '肩膀用力往上聳，再突然放鬆，做 10 次。', hint: '聳肩時吸氣，放鬆時吐氣。', answer: '肩頸釋壓', explanation: '消除肩膀緊張壓力。' },
+  { label: '轉腳踝', points: 10, animal: '🐕', sport: '⭕', task: '坐著，轉動右腳踝 10 圈，再換左腳。', hint: '動作放慢，畫大圓。', answer: '關節活動', explanation: '增加腳踝穩定性。' },
+  { label: '空中踩', points: 20, animal: '🚲', sport: '🚲', task: '坐穩，雙腳在空中踩腳踏車 10 秒。', hint: '手扶椅子，核心用力。', answer: '腹部核心', explanation: '訓練腹肌與腿部。' },
+  { label: '手肘碰', points: 15, animal: '🦍', sport: '💪', task: '雙手抱頭，右手肘碰左膝蓋，做 5 次。', hint: '量力而為，碰不到沒關係。', answer: '身體協調', explanation: '訓練斜腹肌與協調性。' },
+  { label: '摸摸背', points: 15, animal: '🐈', sport: '👋', task: '右手舉高往後摸背，左手幫忙壓一下手肘。', hint: '停留 10 秒，換邊。', answer: '手臂伸展', explanation: '伸展手臂三頭肌。' },
+  { label: '擊掌樂', points: 20, animal: '🐬', sport: '👏', task: '跟左右鄰居擊掌，大喊「加油」！', hint: '看著對方的眼睛。', answer: '社交互動', explanation: '增進人際關係。' },
+];
+
+const DEFAULT_TEAMS = [
+  { id: 't1', name: '紅蘋果隊', color: 'bg-red-100', border: 'border-red-500', text: 'text-red-700', score: 0, avatar: '🍎' },
+  { id: 't2', name: '藍精靈隊', color: 'bg-blue-100', border: 'border-blue-500', text: 'text-blue-700', score: 0, avatar: '🫐' },
+];
+
+// --- 建立環狀地圖 ---
+// 7x7 Grid: 
+// Row 0: 0,1,2,3,4,5,6 (7個)
+// Row 1: 23, [Center], 7
+// Row 2: 22, [Center], 8
+// ...
+// Row 6: 18,17,16,15,14,13,12 (7個倒序)
+const generateBoard = () => {
+  const tasks = [...EXERCISE_POOL].sort(() => Math.random() - 0.5); // 洗牌
+  // 建立 24 個格子
+  return tasks.slice(0, 24).map((task, i) => ({
+    ...task,
+    id: i,
+    owner: null, // 被哪隊佔領
+  }));
+};
+
+export default function HealthMonopolyV2() {
+  const [gameState, setGameState] = useState('setup'); // setup, playing, finished
+  const [teams, setTeams] = useState(DEFAULT_TEAMS);
+  const [board, setBoard] = useState([]);
+  const [turn, setTurn] = useState(0); // 隊伍 index
+  const [modalData, setModalData] = useState(null); // 控制彈窗 (題目或機會卡)
+  const [winner, setWinner] = useState(null);
+  
+  // 隊伍 Buff 狀態 (例如: 下一題分數加倍)
+  const [teamBuffs, setTeamBuffs] = useState({}); // { teamId: { doubleScore: boolean } }
+
+  const activeTeam = teams[turn];
+
+  // --- 遊戲邏輯 ---
+
+  const addTeam = () => {
+    if (teams.length >= 4) return;
+    const variants = [
+      { color: 'bg-green-100', border: 'border-green-500', text: 'text-green-700', avatar: '🥝' },
+      { color: 'bg-yellow-100', border: 'border-yellow-500', text: 'text-yellow-700', avatar: '🍌' }
+    ];
+    const idx = teams.length;
+    setTeams([...teams, { id: `t${Date.now()}`, name: `新隊伍 ${idx+1}`, score: 0, ...variants[idx-2]||variants[0] }]);
+  };
+
+  const removeTeam = (id) => {
+    if (teams.length <= 1) return;
+    setTeams(teams.filter(t => t.id !== id));
+  };
+
+  const updateTeamName = (id, newName) => {
+    setTeams(teams.map(t => t.id === id ? { ...t, name: newName } : t));
+  };
+
+  const startGame = () => {
+    setBoard(generateBoard());
+    setGameState('playing');
+    setTurn(0);
+    setTeamBuffs({});
+  };
+
+  // 點選題目格
+  const handleTileClick = (tile) => {
+    if (tile.owner) return; // 已被佔領
+    setModalData({ type: 'task', data: tile });
+  };
+
+  // 點選機會卡
+  const handleChanceClick = () => {
+    const card = CHANCE_DECK[Math.floor(Math.random() * CHANCE_DECK.length)];
+    setModalData({ type: 'chance', data: card });
+  };
+
+  // 完成題目
+  const completeTask = (points) => {
+    if (!modalData) return;
+    
+    // 處理分數 (檢查是否有加倍 Buff)
+    let finalPoints = points;
+    if (teamBuffs[activeTeam.id]?.doubleScore) {
+      finalPoints *= 2;
+      // 消耗 Buff
+      setTeamBuffs(prev => ({ ...prev, [activeTeam.id]: { ...prev[activeTeam.id], doubleScore: false } }));
+    }
+
+    const newTeams = [...teams];
+    newTeams[turn].score += finalPoints;
+    setTeams(newTeams);
+
+    // 佔領格子
+    if (modalData.type === 'task') {
+      const newBoard = board.map(t => t.id === modalData.data.id ? { ...t, owner: activeTeam } : t);
+      setBoard(newBoard);
+    }
+
+    finishTurn(newTeams);
+  };
+
+  // 執行機會卡效果
+  const applyChanceEffect = () => {
+    const card = modalData.data;
+    const effect = card.effect;
+    let newTeams = [...teams];
+    let nextTurnIndex = (turn + 1) % teams.length; // 預設下一位
+
+    if (effect === 'repick') {
+      setModalData(null); // 關閉視窗，不換人
+      return; 
+    }
+
+    if (effect === 'add_15') {
+      newTeams[turn].score += 15;
+    }
+
+    if (effect === 'steal_10' || effect === 'steal_5') {
+      const amount = effect === 'steal_10' ? 10 : 5;
+      // 找最高分隊伍 (排除自己)
+      const others = newTeams.filter(t => t.id !== activeTeam.id);
+      if (others.length > 0) {
+        const victim = others.reduce((prev, curr) => (prev.score > curr.score) ? prev : curr);
+        const victimIndex = newTeams.findIndex(t => t.id === victim.id);
+        
+        // 執行偷分
+        newTeams[victimIndex].score = Math.max(0, newTeams[victimIndex].score - amount);
+        newTeams[turn].score += amount;
+      }
+    }
+
+    if (effect === 'buff_double') {
+      setTeamBuffs(prev => ({ ...prev, [activeTeam.id]: { ...prev[activeTeam.id], doubleScore: true } }));
+    }
+
+    if (effect === 'extra_turn') {
+      nextTurnIndex = turn; // 維持同一位
+    }
+
+    setTeams(newTeams);
+    finishTurn(newTeams, nextTurnIndex);
+  };
+
+  // 結束回合並檢查勝利
+  const finishTurn = (currentTeams, nextIndex = null) => {
+    setModalData(null);
+    
+    // 檢查是否有人達到 100 分
+    const winnerTeam = currentTeams.find(t => t.score >= WINNING_SCORE);
+    if (winnerTeam) {
+      setWinner(winnerTeam);
+      setGameState('finished');
+    } else {
+      setTurn(nextIndex !== null ? nextIndex : (turn + 1) % teams.length);
+    }
+  };
+
+  const resetGame = () => {
+    setTeams(DEFAULT_TEAMS.map(t => ({...t, score: 0})));
+    setGameState('setup');
+    setWinner(null);
+  };
+
+  // --- Render ---
+
+  if (gameState === 'setup') {
+    return (
+      <div className="min-h-screen bg-green-50 font-sans flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-[3rem] shadow-2xl w-full max-w-2xl border-8 border-green-200">
+          <h1 className="text-4xl md:text-5xl font-bold text-center text-green-600 mb-2 flex items-center justify-center gap-3">
+             <Activity size={56} /> 健康動一動
+          </h1>
+          <p className="text-xl text-center text-gray-400 mb-8">搶 100 分大作戰</p>
+          
+          <h2 className="text-2xl text-center text-gray-600 mb-6 font-bold flex items-center justify-center gap-2">
+            <Edit3 size={24} /> 點選隊名修改
+          </h2>
+          
+          <div className="space-y-4 mb-8">
+            {teams.map((team) => (
+              <div key={team.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border-2 border-gray-100 shadow-sm transition hover:border-green-300">
+                <span className="text-4xl">{team.avatar}</span>
+                <input 
+                  type="text" 
+                  value={team.name}
+                  onChange={(e) => updateTeamName(team.id, e.target.value)}
+                  className="flex-1 text-2xl p-2 border-b-2 border-gray-300 focus:border-green-400 outline-none bg-transparent font-bold text-gray-700"
+                />
+                {teams.length > 1 && (
+                  <button onClick={() => removeTeam(team.id)} className="text-gray-400 hover:text-red-500 font-bold px-3 py-1 rounded-lg hover:bg-red-50 transition">
+                    移除
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button onClick={addTeam} disabled={teams.length >= 4} className="px-6 py-4 rounded-full bg-blue-100 text-blue-600 font-bold text-xl hover:bg-blue-200 transition flex items-center justify-center gap-2">
+              <Users /> 新增隊伍
+            </button>
+            <button onClick={startGame} className="px-10 py-4 rounded-full bg-green-500 text-white font-bold text-2xl hover:bg-green-600 shadow-xl hover:scale-105 transition flex items-center justify-center gap-2">
+              開始挑戰 <ArrowRight />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState === 'finished') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-yellow-100 to-green-100 flex flex-col items-center justify-center p-4">
+         <Trophy size={140} className="text-yellow-500 mx-auto drop-shadow-2xl mb-8 animate-bounce" />
+         <h1 className="text-6xl font-black text-green-700 mb-2 drop-shadow-sm">恭喜獲勝！</h1>
+         <div className="bg-white p-12 rounded-[3rem] shadow-2xl text-center border-8 border-yellow-400 max-w-2xl w-full">
+            <h2 className="text-5xl font-bold text-gray-800 mb-6 flex items-center justify-center gap-4">
+                <span className="text-7xl">{winner?.avatar}</span> 
+                {winner?.name}
+            </h2>
+            <div className="text-4xl text-gray-600 mb-10 font-bold">
+                總得分：<span className="text-red-500 text-6xl">{winner?.score}</span> 分
+            </div>
+            <button onClick={resetGame} className="w-full px-8 py-5 rounded-full bg-green-500 text-white font-bold text-3xl hover:bg-green-600 shadow-xl flex items-center justify-center gap-3 transition">
+              <RotateCcw /> 再玩一次
+            </button>
+         </div>
+      </div>
+    );
+  }
+
+  // --- 繪製版面 ---
+  // 將 24 個格子排列成 7x7 的外框
+  const renderTile = (index) => {
+    // 根據 7x7 的索引邏輯映射到 board 陣列
+    // 外框索引順序：上排(0-6), 右排(7-11), 下排(12-18倒序), 左排(19-23倒序)
+    // 這裡我們直接用 CSS Grid 定位
+    return null; 
+  };
+
+  // 將一維陣列(24個)分配到對應的 CSS Grid Area
+  // 我們使用簡單的 Grid 排列，將中間留空
+  // Grid 7x7 = 49 cells.
+  // Cells 0-6 (Top), 7,13,14,20,21,27,28,34,35,41 (Sides...), 42-48 (Bottom)
+  // 為了簡化，我們直接生成 49 個 div，如果是邊界則渲染 Tile，中間則渲染機會卡區
+  const gridCells = [];
+  
+  // 建立地圖索引映射
+  // 順時針：
+  // Top: 0,1,2,3,4,5,6
+  // Right: 7,8,9,10,11
+  // Bottom: 12,13,14,15,16,17,18 (Reversed visually in grid but index flows)
+  // Left: 19,20,21,22,23
+  
+  // 為了配合 Grid 視覺 (row, col)
+  const getBoardIndex = (row, col) => {
+    if (row === 0) return col; // 0-6
+    if (row === 6) return 18 - (col); // 12-18 (col 0 is 18, col 6 is 12) -> wait. 
+    // Let's do a simple path mapping
+    // Top Row (0): 0,1,2,3,4,5,6
+    // Right Col (6): 7,8,9,10,11 (rows 1-5)
+    // Bottom Row (6): 12,13,14,15,16,17,18 (cols 6-0)
+    // Left Col (0): 19,20,21,22,23 (rows 5-1)
+    
+    if (row === 0) return col;
+    if (col === 6 && row > 0 && row < 6) return 6 + row;
+    if (row === 6) return 12 + (6 - col);
+    if (col === 0 && row > 0 && row < 6) return 18 + (6 - row);
+    
+    return -1; // Center area
+  };
+
+  for (let r = 0; r < 7; r++) {
+    for (let c = 0; c < 7; c++) {
+      const boardIdx = getBoardIndex(r, c);
+      
+      // 中央區域 (合併)
+      if (r >= 2 && r <= 4 && c >= 2 && c <= 4) {
+        if (r === 2 && c === 2) {
+           gridCells.push(
+             <div key="center" className="col-span-3 row-span-3 bg-white/50 rounded-3xl border-4 border-dashed border-purple-300 flex flex-col items-center justify-center p-4 m-2 shadow-inner hover:bg-purple-50 transition cursor-pointer group" onClick={handleChanceClick}>
+                <Gift className="text-purple-500 w-16 h-16 mb-2 group-hover:scale-110 transition-transform" />
+                <div className="text-2xl font-bold text-purple-700">機會功能卡</div>
+                <div className="text-sm text-purple-500 font-bold bg-white px-3 py-1 rounded-full mt-2">點我抽卡 (共10張)</div>
+             </div>
+           );
+        }
+        continue;
+      }
+      
+      // 空白區域 (非中央也非邊框)
+      if (boardIdx === -1) {
+        gridCells.push(<div key={`empty-${r}-${c}`} className=""></div>);
+        continue;
+      }
+
+      // 邊框題目格
+      const tile = board[boardIdx];
+      if (!tile) continue; // Should not happen
+
+      gridCells.push(
+        <button 
+            key={tile.id}
+            onClick={() => handleTileClick(tile)}
+            disabled={!!tile.owner || gameState !== 'playing'}
+            className={`
+                relative w-full h-full aspect-square rounded-xl flex items-center justify-center p-1 transition-all duration-300 group overflow-hidden shadow-md border-b-4 border-black/10
+                ${tile.owner 
+                    ? `${tile.owner.color} ${tile.owner.border} border-4` 
+                    : `bg-white hover:bg-orange-50 hover:scale-105`
+                }
+            `}
+        >
+             {/* 左上角：任務圖示 (固定不動) */}
+             <div className="absolute top-1 left-1 md:top-2 md:left-2 opacity-100 z-10 pointer-events-none">
+                 <SportDoll animal={tile.animal} sport={tile.sport} size="text-2xl md:text-3xl" />
+             </div>
+
+             {/* 中間：題目文字 */}
+             <div className={`font-bold text-xs md:text-sm leading-tight text-center px-1 mt-6 md:mt-8 w-full z-0 break-words text-gray-700 ${tile.owner ? 'opacity-50' : ''}`}>
+                 {tile.label}
+                 <br/><span className="text-[10px] text-gray-400">{tile.points}分</span>
+             </div>
+
+             {/* 右下角：隊伍標記 (佔領後顯示) */}
+             {tile.owner && (
+                 <div className="absolute bottom-1 right-1 bg-white rounded-full p-1 shadow-md border border-gray-200 z-20 animate-bounce">
+                     <span className="text-lg md:text-xl leading-none">{tile.owner.avatar}</span>
+                     <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5">
+                         <CheckCircle className="w-3 h-3 text-white" />
+                     </div>
+                 </div>
+             )}
+        </button>
+      );
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-amber-50 font-sans flex flex-col relative overflow-hidden">
+      
+      {/* 標題欄 */}
+      <header className="bg-white/90 backdrop-blur-md px-6 py-4 shadow-sm border-b-2 border-orange-200 flex flex-col md:flex-row justify-between items-center sticky top-0 z-20 gap-4">
+        <h1 className="text-3xl font-black text-orange-600 flex items-center gap-3 tracking-wide">
+            <Activity className="text-orange-500" /> 健康動一動
+        </h1>
+        
+        {/* 分數板 */}
+        <div className="flex gap-4 overflow-x-auto pb-1 md:pb-0 w-full md:w-auto px-2">
+            {teams.map(t => (
+                <div key={t.id} className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all ${t.id === activeTeam.id ? `${t.border} bg-white shadow-md scale-105` : 'border-transparent bg-gray-100 opacity-60'}`}>
+                    <span className="text-2xl">{t.avatar}</span>
+                    <div className="flex flex-col leading-none">
+                        <span className={`font-bold text-sm ${t.text}`}>{t.name}</span>
+                        <span className="font-black text-xl">{t.score} <span className="text-xs text-gray-400">/ 100</span></span>
+                    </div>
+                    {teamBuffs[t.id]?.doubleScore && <span className="bg-yellow-300 text-xs px-1 rounded animate-pulse">x2</span>}
+                </div>
+            ))}
+        </div>
+      </header>
+
+      <main className="flex-1 flex flex-col lg:flex-row p-4 gap-6 max-w-7xl mx-auto w-full h-[calc(100vh-80px)]">
+        
+        {/* 左側：7x7 遊戲版面 */}
+        <div className="flex-1 bg-white rounded-[2rem] shadow-xl p-2 md:p-4 border-4 border-orange-200 overflow-hidden flex flex-col">
+            <div className="grid grid-cols-7 grid-rows-7 gap-1 md:gap-2 w-full h-full aspect-square max-h-[80vh] mx-auto">
+                {gridCells}
+            </div>
+        </div>
+
+        {/* 右側：控制面板 */}
+        <div className="w-full lg:w-80 flex flex-col gap-4">
+            {/* 輪次卡 */}
+            <div className="bg-white rounded-[2rem] shadow-lg p-6 border-b-8 border-orange-100 text-center">
+                <div className="text-gray-400 font-bold mb-2 uppercase text-xs tracking-widest">CURRENT TURN</div>
+                <div className={`w-full py-4 rounded-2xl shadow-sm border-2 ${activeTeam.color} ${activeTeam.border} flex flex-col items-center gap-1 mb-2`}>
+                    <span className="text-5xl animate-bounce">{activeTeam.avatar}</span>
+                    <span className={`text-2xl font-black ${activeTeam.text}`}>{activeTeam.name}</span>
+                </div>
+                {teamBuffs[activeTeam.id]?.doubleScore && (
+                     <div className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-bold flex items-center justify-center gap-1 mb-2">
+                        <Zap size={14} /> 分數加倍中！
+                     </div>
+                )}
+                <div className="text-gray-500 text-sm">請點選外框題目，或點選中間機會卡。</div>
+            </div>
+
+            {/* 說明卡 */}
+            <div className="bg-blue-50 rounded-3xl p-6 border-2 border-blue-100 flex-1 flex flex-col items-center justify-center text-center">
+                 <Info className="text-blue-400 w-10 h-10 mb-2" />
+                 <h4 className="text-blue-700 font-bold text-lg mb-2">遊戲規則</h4>
+                 <ul className="text-blue-800/70 text-sm text-left list-disc list-inside space-y-1">
+                     <li>目標：先獲得 <strong>100分</strong> 者獲勝。</li>
+                     <li>每題 10-20 分不等。</li>
+                     <li>機會卡可能加分，也可能...嘿嘿。</li>
+                 </ul>
+            </div>
+        </div>
+      </main>
+
+      {/* 彈窗：題目或機會卡 */}
+      {modalData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className={`bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden border-8 flex flex-col max-h-[90vh] ${modalData.type === 'chance' ? 'border-purple-200' : 'border-white'}`}>
+                
+                {/* Header */}
+                <div className={`p-6 text-center relative shrink-0 ${modalData.type === 'chance' ? 'bg-purple-100' : 'bg-orange-100'}`}>
+                    <div className="flex justify-center mb-2">
+                        <div className="bg-white/60 p-4 rounded-full shadow-sm">
+                            {modalData.type === 'chance' 
+                                ? <div className="text-5xl">{modalData.data.icon}</div>
+                                : <SportDoll animal={modalData.data.animal} sport={modalData.data.sport} size="text-5xl" />
+                            }
+                        </div>
+                    </div>
+                    <h2 className="text-3xl font-black text-gray-800 mb-1">{modalData.data.label}</h2>
+                    {modalData.type === 'task' && (
+                        <span className="inline-block bg-white/50 px-3 py-0.5 rounded-full text-sm font-bold text-gray-700">
+                            積分：{modalData.data.points} {teamBuffs[activeTeam.id]?.doubleScore ? '(x2)' : ''}
+                        </span>
+                    )}
+                </div>
+                
+                {/* Content */}
+                <div className="p-6 bg-white overflow-y-auto flex-1 space-y-6 text-lg">
+                    {/* 題目/機會內容 */}
+                    <div className="text-center">
+                        <p className="text-2xl font-bold text-gray-800 leading-relaxed mb-4">
+                            {modalData.type === 'task' ? modalData.data.task : modalData.data.desc}
+                        </p>
+                    </div>
+
+                    {/* 提示 (僅題目有) */}
+                    {modalData.type === 'task' && (
+                        <>
+                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-xl">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <Lightbulb className="text-yellow-500" size={20} />
+                                        <h4 className="font-bold text-yellow-700 text-sm">老師小提示</h4>
+                                    </div>
+                                    <button onClick={() => speak(modalData.data.hint)} className="btn-icon"><Volume2 size={20} /></button>
+                                </div>
+                                <p className="text-gray-700">{modalData.data.hint}</p>
+                            </div>
+
+                            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-xl space-y-4">
+                                <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle className="text-blue-500" size={20} />
+                                            <h4 className="font-bold text-blue-700 text-sm">動作標準</h4>
+                                        </div>
+                                        <button onClick={() => speak(modalData.data.answer)} className="btn-icon"><Volume2 size={20} /></button>
+                                    </div>
+                                    <p className="text-gray-800 font-bold">{modalData.data.answer}</p>
+                                </div>
+                                <div className="border-t border-blue-100 pt-3">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <BookOpen className="text-blue-500" size={20} />
+                                            <h4 className="font-bold text-blue-700 text-sm">知識小百科</h4>
+                                        </div>
+                                        <button onClick={() => speak(modalData.data.explanation)} className="btn-icon"><Volume2 size={20} /></button>
+                                    </div>
+                                    <p className="text-gray-600 text-sm">{modalData.data.explanation}</p>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="p-4 bg-gray-50 border-t border-gray-100 shrink-0 flex gap-3">
+                     {modalData.type === 'task' ? (
+                         <>
+                            <button onClick={() => setModalData(null)} className="flex-1 py-3 rounded-2xl bg-gray-200 text-gray-500 font-bold hover:bg-gray-300">取消/跳過</button>
+                            <button onClick={() => completeTask(modalData.data.points)} className="flex-[2] py-3 rounded-2xl bg-green-500 text-white font-bold hover:bg-green-600 shadow-lg flex items-center justify-center gap-2">
+                                <CheckCircle /> 完成挑戰
+                            </button>
+                         </>
+                     ) : (
+                         <button onClick={applyChanceEffect} className="w-full py-3 rounded-2xl bg-purple-500 text-white font-bold hover:bg-purple-600 shadow-lg">
+                             確認 (執行效果)
+                         </button>
+                     )}
+                </div>
+            </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .btn-icon {
+            @apply bg-white/50 p-2 rounded-full hover:bg-white text-gray-600 transition;
+        }
+      `}</style>
+    </div>
+  );
+}
