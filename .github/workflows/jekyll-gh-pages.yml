@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日系R&B音樂心情播放卡</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定義捲軸樣式 */
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- React and ReactDOM via ESM -->
+    <script type="module">
+        import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        import { Play, Pause, Heart, Share2, Music, Disc, CloudRain, Sun, Moon, Wind, ListMusic } from 'https://esm.sh/lucide-react@0.263.1';
+
+        const App = () => {
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [currentTrack, setCurrentTrack] = useState(0);
+            const [liked, setLiked] = useState(false);
+            const [progress, setProgress] = useState(0);
+
+            // 模擬進度條動畫
+            useEffect(() => {
+                let interval;
+                if (isPlaying) {
+                    interval = setInterval(() => {
+                        setProgress((prev) => (prev >= 100 ? 0 : prev + 0.5));
+                    }, 500);
+                }
+                return () => clearInterval(interval);
+            }, [isPlaying]);
+
+            const videoInfo = {
+                title: "Japanese R&B｜一聽就愛上的日文歌",
+                subtitle: "快樂就是這麼簡單 🎶",
+                channel: "7Tunes-n2e",
+                duration: "1:07:19",
+                tags: ["#放鬆音樂", "#Chill", "#R&B", "#J-POP", "#作業用BGM"],
+                url: "https://www.youtube.com/watch?v=r34IHFI-29c"
+            };
+
+            // 根據歌詞內容提取的意象與主題
+            const themes = [
+                { icon: React.createElement(Sun, { className: "w-5 h-5 text-orange-400" }), title: "光之歌", desc: "在晨光中尋找希望與未來" },
+                { icon: React.createElement(Wind, { className: "w-5 h-5 text-pink-300" }), title: "櫻花戀曲", desc: "隨風飄落的花瓣與初戀的心跳" },
+                { icon: React.createElement(CloudRain, { className: "w-5 h-5 text-blue-400" }), title: "海邊的夏天", desc: "波浪聲、沙灘與兩人共享的果汁" },
+                { icon: React.createElement(Moon, { className: "w-5 h-5 text-indigo-400" }), title: "星空告白", desc: "在靜謐的夜空下傳遞思念" },
+                { icon: React.createElement(Music, { className: "w-5 h-5 text-purple-400" }), title: "雨中的回憶", desc: "透過雨聲喚起那些溫柔的過往" },
+            ];
+
+            const handlePlay = () => {
+                setIsPlaying(!isPlaying);
+            };
+
+            const handleOpenVideo = () => {
+                window.open(videoInfo.url, '_blank');
+            };
+
+            return React.createElement(
+                "div",
+                { className: "min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center p-4 font-sans text-slate-800" },
+                React.createElement(
+                    "div",
+                    { className: "max-w-4xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row" },
+                    
+                    /* 左側：播放器介面 */
+                    React.createElement(
+                        "div",
+                        { className: "md:w-1/2 p-8 bg-gradient-to-br from-indigo-50 to-blue-50 flex flex-col justify-between relative overflow-hidden" },
+                        /* 背景裝飾 */
+                        React.createElement("div", { className: "absolute top-10 right-10 w-64 h-64 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" }),
+                        React.createElement("div", { className: "absolute bottom-10 left-10 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse", style: { animationDelay: '2s' } }),
+
+                        /* 頂部資訊 */
+                        React.createElement(
+                            "div",
+                            { className: "flex justify-between items-center z-10" },
+                            React.createElement(
+                                "div",
+                                { className: "flex items-center space-x-2 text-slate-500" },
+                                React.createElement(Disc, { className: `w-5 h-5 ${isPlaying ? 'animate-spin' : ''}`, style: { animationDuration: '3s' } }),
+                                React.createElement("span", { className: "text-sm font-medium tracking-wider" }, "NOW PLAYING")
+                            ),
+                            React.createElement(
+                                "button",
+                                { className: "text-slate-400 hover:text-slate-600 transition-colors" },
+                                React.createElement(Share2, { className: "w-5 h-5" })
+                            )
+                        ),
+
+                        /* 專輯封面示意圖 */
+                        React.createElement(
+                            "div",
+                            { className: "flex-1 flex items-center justify-center py-8 z-10" },
+                            React.createElement(
+                                "div",
+                                { className: "relative w-48 h-48 md:w-64 md:h-64 shadow-2xl rounded-2xl overflow-hidden group" },
+                                React.createElement("div", { className: "absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-80 group-hover:scale-110 transition-transform duration-700" }),
+                                React.createElement("img", {
+                                    src: "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                                    alt: "Relaxing Vibes",
+                                    className: "absolute inset-0 w-full h-full object-cover mix-blend-overlay group-hover:scale-110 transition-transform duration-700"
+                                }),
+                                React.createElement(
+                                    "div",
+                                    { className: "absolute inset-0 flex items-center justify-center" },
+                                    React.createElement(
+                                        "button",
+                                        {
+                                            onClick: handlePlay,
+                                            className: "w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-all border border-white/40 shadow-lg group-hover:scale-105"
+                                        },
+                                        isPlaying ? React.createElement(Pause, { className: "w-8 h-8 text-white fill-current" }) : React.createElement(Play, { className: "w-8 h-8 text-white fill-current ml-1" })
+                                    )
+                                )
+                            )
+                        ),
+
+                        /* 歌曲資訊與控制 */
+                        React.createElement(
+                            "div",
+                            { className: "space-y-6 z-10" },
+                            React.createElement(
+                                "div",
+                                { className: "text-center md:text-left" },
+                                React.createElement("h1", { className: "text-2xl md:text-3xl font-bold text-slate-800 leading-tight mb-1" }, videoInfo.title),
+                                React.createElement("p", { className: "text-slate-500 text-lg" }, videoInfo.subtitle)
+                            ),
+
+                            /* 進度條 */
+                            React.createElement(
+                                "div",
+                                { className: "space-y-2" },
+                                React.createElement(
+                                    "div",
+                                    { className: "h-1.5 bg-slate-200 rounded-full overflow-hidden" },
+                                    React.createElement("div", {
+                                        className: "h-full bg-indigo-500 rounded-full transition-all duration-500",
+                                        style: { width: `${progress}%` }
+                                    })
+                                ),
+                                React.createElement(
+                                    "div",
+                                    { className: "flex justify-between text-xs text-slate-400 font-mono" },
+                                    React.createElement("span", null, "00:00"),
+                                    React.createElement("span", null, videoInfo.duration)
+                                )
+                            ),
+
+                            /* 控制按鈕 */
+                            React.createElement(
+                                "div",
+                                { className: "flex justify-between items-center pt-2" },
+                                React.createElement(
+                                    "button",
+                                    {
+                                        onClick: () => setLiked(!liked),
+                                        className: `p-3 rounded-full transition-colors ${liked ? 'bg-pink-100 text-pink-500' : 'hover:bg-slate-100 text-slate-400'}`
+                                    },
+                                    React.createElement(Heart, { className: `w-6 h-6 ${liked ? 'fill-current' : ''}` })
+                                ),
+                                React.createElement(
+                                    "button",
+                                    {
+                                        onClick: handleOpenVideo,
+                                        className: "flex-1 mx-4 bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl active:scale-95 flex items-center justify-center space-x-2"
+                                    },
+                                    React.createElement(Play, { className: "w-4 h-4 fill-current" }),
+                                    React.createElement("span", null, "在 YouTube 觀看")
+                                )
+                            )
+                        )
+                    ),
+
+                    /* 右側：詳細資訊與播放清單 */
+                    React.createElement(
+                        "div",
+                        { className: "md:w-1/2 p-8 bg-white flex flex-col overflow-y-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-200" },
+                        React.createElement(
+                            "div",
+                            { className: "mb-8" },
+                            React.createElement(
+                                "h2",
+                                { className: "text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center" },
+                                React.createElement(ListMusic, { className: "w-4 h-4 mr-2" }),
+                                "Playlist Themes"
+                            ),
+                            React.createElement(
+                                "div",
+                                { className: "space-y-4" },
+                                themes.map((theme, index) => 
+                                    React.createElement(
+                                        "div",
+                                        {
+                                            key: index,
+                                            onClick: () => setCurrentTrack(index),
+                                            className: `p-4 rounded-xl cursor-pointer transition-all border ${
+                                                currentTrack === index 
+                                                    ? 'bg-indigo-50 border-indigo-100 shadow-sm' 
+                                                    : 'bg-white border-slate-100 hover:border-indigo-100 hover:bg-slate-50'
+                                            }`
+                                        },
+                                        React.createElement(
+                                            "div",
+                                            { className: "flex items-start space-x-4" },
+                                            React.createElement(
+                                                "div",
+                                                { className: `p-3 rounded-lg ${currentTrack === index ? 'bg-white shadow-sm' : 'bg-slate-100'}` },
+                                                theme.icon
+                                            ),
+                                            React.createElement(
+                                                "div",
+                                                null,
+                                                React.createElement(
+                                                    "h3",
+                                                    { className: `font-bold ${currentTrack === index ? 'text-indigo-900' : 'text-slate-700'}` },
+                                                    theme.title
+                                                ),
+                                                React.createElement(
+                                                    "p",
+                                                    { className: "text-sm text-slate-500 mt-1 leading-relaxed" },
+                                                    theme.desc
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        React.createElement(
+                            "div",
+                            { className: "mt-auto" },
+                            React.createElement("h2", { className: "text-sm font-bold text-slate-400 uppercase tracking-widest mb-3" }, "Tags"),
+                            React.createElement(
+                                "div",
+                                { className: "flex flex-wrap gap-2" },
+                                videoInfo.tags.map((tag, i) => 
+                                    React.createElement(
+                                        "span",
+                                        { key: i, className: "px-3 py-1 bg-slate-100 text-slate-600 text-sm rounded-full font-medium hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-default" },
+                                        tag
+                                    )
+                                )
+                            ),
+                            React.createElement(
+                                "div",
+                                { className: "mt-8 pt-6 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center" },
+                                React.createElement("span", null, `Channel: ${videoInfo.channel}`),
+                                React.createElement("span", null, "Published: 2025-09-28")
+                            )
+                        )
+                    )
+                )
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
